@@ -1,10 +1,57 @@
 import React, { useState } from 'react'
-// import Add from "../img/addAvatar.png";
+import Add from "../img/addAvatar.png";
 import { useNavigate, Link } from "react-router-dom";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth, db, storage } from "../firebase"
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
 const Register = () => {
     const [err, setErr] = useState(false);
     const [loading, setLoading] = useState(false);
-    const handleSubmit = () => { }
+    const navigate = useNavigate();
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const displayName = e.target[0].value;
+        const email = e.target[1].value;
+        const password = e.target[2].value;
+        const file = e.target[3].files[0];
+        try {
+            const date = new Date().getTime();
+            const { user } = await createUserWithEmailAndPassword(auth, email, password);
+
+            const storageRef = ref(storage, `${displayName + date}`);
+            console.log(storageRef);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+            console.log(uploadTask);
+
+
+            const uploadSnapshot = await uploadTask; // waits for upload completion
+            const downloadURL = await getDownloadURL(uploadSnapshot.ref);
+
+            await updateProfile(user, {
+                displayName,
+                photoURL: downloadURL,
+            });
+
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                displayName,
+                email,
+                photoURL: downloadURL,
+            });
+
+            await setDoc(doc(db, "userChats", user.uid), {
+
+            })
+
+            navigate("/");
+        } catch {
+            console.log(err); // don't forget to log the error so you can investigate
+            setErr(true);
+            setLoading(false);
+
+        }
+    }
     return (
         <div className="formContainer">
             <div className="formWrapper">
@@ -14,9 +61,9 @@ const Register = () => {
                     <input required type="text" placeholder="display name" />
                     <input required type="email" placeholder="email" />
                     <input required type="password" placeholder="password" />
-                    <input required style={{ display: "none" }} type="file" id="file" />
+                    <input style={{ display: "none" }} type="file" id="file" />
                     <label htmlFor="file">
-                        {/* <img src={Add} alt="" /> */}
+                        <img src={Add} alt="" />
                         <span>Add an avatar</span>
                     </label>
                     <button disabled={loading}>Sign up</button>
@@ -24,7 +71,7 @@ const Register = () => {
                     {err && <span>Something went wrong</span>}
                 </form>
                 <p>
-                    {/* You do have an account? <Link to="/register">Login</Link> */}
+                    You do have an account? <Link to="/register">Login</Link>
                 </p>
             </div>
         </div>
